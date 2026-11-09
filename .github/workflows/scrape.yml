@@ -4,6 +4,9 @@ on:
   schedule:
     - cron: "4,19,34,49 * * * *"   # every 15 min (off the :00 rush, GitHub delays those)
   workflow_dispatch: {}
+  push:                            # run once whenever the scraper itself changes
+    branches: [main]
+    paths: ["scraper/**", ".github/workflows/**"]
 
 permissions:
   contents: write
