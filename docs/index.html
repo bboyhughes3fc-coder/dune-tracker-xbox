@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Arrakis EU Xbox Pulse</title>
+<meta name="description" content="Hour-by-hour player counts for the official EU Xbox worlds in Dune: Awakening.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column of stacked panels; summary first, then patterns, then drill-down. */
+:root {
+  --bg: #f3f1ec; --panel: #fbfaf7; --ink: #17181b; --ink-2: #4f5057; --ink-3: #85868c;
+  --rule: #dedbd2; --grid: #e9e6de;
+  --accent: #b5651d;          /* home world (Bled) */
+  --series: #2a78d6;          /* selected world */
+  --other: #c9c6bd;           /* every other world */
+  --seq-0: #eef3f9; --seq-1: #cde2fb; --seq-2: #9ec5f4; --seq-3: #5598e7; --seq-4: #2a78d6; --seq-5: #1c5cab; --seq-6: #0d366b;
+  --good: #0ca30c; --warn: #fab219;
+  --display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121318; --panel: #1a1b21; --ink: #eeede8; --ink-2: #b9b8b0; --ink-3: #85857f;
+  --rule: #2c2d35; --grid: #24252c;
+  --accent: #e08a3c; --series: #3987e5; --other: #4a4b53;
+  --seq-0: #1d2230; --seq-1: #13294a; --seq-2: #104281; --seq-3: #1c5cab; --seq-4: #2a78d6; --seq-5: #5598e7; --seq-6: #9ec5f4;
+  color-scheme: dark;
+}}
+:root[data-theme="dark"] {
+  --bg: #121318; --panel: #1a1b21; --ink: #eeede8; --ink-2: #b9b8b0; --ink-3: #85857f;
+  --rule: #2c2d35; --grid: #24252c;
+  --accent: #e08a3c; --series: #3987e5; --other: #4a4b53;
+  --seq-0: #1d2230; --seq-1: #13294a; --seq-2: #104281; --seq-3: #1c5cab; --seq-4: #2a78d6; --seq-5: #5598e7; --seq-6: #9ec5f4;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--body); }
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 28px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 20px; }
+header { display: grid; gap: 6px; }
+.eyebrow { font: 600 13px/1 var(--display); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); }
+h1 { font: 700 clamp(34px, 6vw, 52px)/1 var(--display); margin: 0; letter-spacing: .01em; text-wrap: balance; }
+h2 { font: 600 22px/1.1 var(--display); margin: 0; letter-spacing: .02em; text-wrap: balance; }
+.sub { color: var(--ink-2); margin: 0; max-width: 68ch; }
+.status { display: flex; flex-wrap: wrap; gap: 8px 16px; font: 13px/1.4 var(--mono); color: var(--ink-2); }
+.pill { display: inline-flex; align-items: center; gap: 6px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); }
+.dot.stale { background: var(--warn); }
+.panel { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 18px; display: grid; gap: 14px; min-width: 0; }
+.panel-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 16px; }
+.note { font-size: 13px; color: var(--ink-3); margin: 0; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+.verdict { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.tile { border-top: 2px solid var(--rule); padding-top: 10px; display: grid; gap: 2px; }
+.tile .k { font: 600 12px/1 var(--display); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
+.tile .v { font: 700 30px/1.1 var(--display); }
+.tile .d { font-size: 13px; color: var(--ink-2); }
+.tile.home { border-top-color: var(--accent); }
+.scroll { overflow-x: auto; min-width: 0; -webkit-overflow-scrolling: touch; }
+svg { display: block; }
+svg text { font-family: var(--mono); font-size: 11px; fill: var(--ink-2); }
+svg .lbl { font-family: var(--body); font-size: 12.5px; fill: var(--ink); }
+svg .lbl.home { fill: var(--accent); font-weight: 600; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font: 500 13px/1 var(--body); padding: 7px 11px; border-radius: 999px; border: 1px solid var(--rule); background: transparent; color: var(--ink-2); cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--series); border-color: var(--series); color: #fff; }
+.chip.home { border-color: var(--accent); }
+.chip:focus-visible { outline: 2px solid var(--series); outline-offset: 2px; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { text-align: right; padding: 7px 10px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+th { font: 600 12px/1.2 var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+td { font-family: var(--mono); font-size: 13px; }
+td:first-child { font-family: var(--body); font-size: 14px; }
+tr.home td:first-child { color: var(--accent); font-weight: 600; }
+.pos { color: var(--good); } .neg { color: var(--ink-3); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--ink-2); align-items: center; }
+.sw { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+.ramp { display: inline-flex; gap: 2px; vertical-align: middle; margin: 0 6px; }
+.ramp i { width: 14px; height: 10px; border-radius: 2px; display: block; }
+#tip { position: fixed; pointer-events: none; z-index: 20; background: var(--ink); color: var(--bg); padding: 7px 10px; border-radius: 6px;
+  font: 12.5px/1.4 var(--body); max-width: 240px; opacity: 0; transition: opacity .1s; }
+#tip b { font-family: var(--mono); font-weight: 500; }
+.empty { color: var(--ink-3); font-style: italic; }
+footer { font-size: 13px; color: var(--ink-3); display: grid; gap: 6px; }
+footer a { color: var(--ink-2); }
+@media (prefers-reduced-motion: reduce) { #tip { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Dune: Awakening · Official EU Xbox worlds</span>
+    <h1>Arrakis EU Xbox Pulse</h1>
+    <p class="sub">Live player counts for the 11 official EU Xbox worlds, sampled every 15 minutes and averaged by hour (UK time). Use it to see which world is busiest, and when, before you transfer off Bled.</p>
+    <div class="status" id="status"><span class="pill"><span class="dot"></span>Loading…</span></div>
+  </header>
+
+  <section class="panel" id="verdict-panel">
+    <div class="panel-head"><h2>So far</h2><p class="note" id="verdict-note"></p></div>
+    <div class="verdict" id="verdict"></div>
+  </section>
+
+  <div class="cols">
+    <section class="panel" id="now-panel">
+      <div class="panel-head"><h2>Right now</h2><p class="note" id="now-note"></p></div>
+      <div id="now-chart"></div>
+    </section>
+    <section class="panel" id="eu-panel">
+      <div class="panel-head"><h2>When Europe plays</h2><p class="note">All platforms, last 30 days</p></div>
+      <div id="eu-chart"></div>
+      <p class="note">Average players online across every EU server (PC + console) by hour of the day, from dunestatus's own history. It shows the daily shape while the per-world data builds up.</p>
+    </section>
+  </div>
+
+  <section class="panel" id="heat-panel">
+    <div class="panel-head"><h2>Busiest hours by world</h2>
+      <div class="legend">Average players <span class="ramp" id="ramp"></span><span id="ramp-range"></span></div></div>
+    <div class="scroll" id="heat"></div>
+    <p class="note">Each cell is the average player count in that UK hour across every day collected. Rows are sorted by overall average. Blank cells have no samples yet.</p>
+  </section>
+
+  <section class="panel" id="table-panel">
+    <div class="panel-head"><h2>World leaderboard</h2><p class="note">Prime time = 19:00–23:59 UK</p></div>
+    <div class="scroll"><table id="board"><thead><tr>
+      <th>World</th><th>Now</th><th>Avg</th><th>Prime avg</th><th>vs Bled</th><th>Peak</th><th>Busiest hr</th><th>Quietest hr</th>
+    </tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <section class="panel" id="world-panel">
+    <div class="panel-head"><h2 id="world-title">World detail</h2></div>
+    <div class="chips" id="chips" role="group" aria-label="Choose a world"></div>
+    <div class="legend" id="trend-legend"></div>
+    <div id="trend"></div>
+    <h2 style="font-size:18px">Day of week × hour</h2>
+    <div class="scroll" id="dow"></div>
+    <h2 style="font-size:18px">Sietches in this world</h2>
+    <p class="note">Each world has 25 sietches (max 60 players each), which share one Deep Desert. The cells show each sietch's average players by UK hour.</p>
+    <div class="scroll" id="sietch"></div>
+  </section>
+
+  <footer>
+    <span>Data: <a href="https://dunestatus.com/" rel="noopener">dunestatus.com</a> (Funcom server browser), scraped every 15 min by a GitHub Action. World list: <a href="https://duneawakening.com/news/here-is-the-server-list-for-consoles/" rel="noopener">official console server list</a>.</span>
+    <span id="foot-meta"></span>
+  </footer>
+</div>
+<div id="tip" role="tooltip"></div>
+
+<script>
+(() => {
+  const TZ = "Europe/London";
+  const NS = "http://www.w3.org/2000/svg";
+  const fmtTime = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  const fmtDay = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, weekday: "short", day: "numeric", month: "short" });
+  const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const hh = h => String(h).padStart(2, "0") + ":00";
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const seqVars = ["--seq-0","--seq-1","--seq-2","--seq-3","--seq-4","--seq-5","--seq-6"];
+  let D = null, selected = null;
+
+  try { selected = localStorage.getItem("dune-world"); } catch (e) {}
+
+  const el = (tag, attrs = {}, parent) => {
+    const n = tag.startsWith("svg:") ? document.createElementNS(NS, tag.slice(4)) : document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      if (k === "text") n.textContent = v; else n.setAttribute(k, v);
+    }
+    if (parent) parent.appendChild(n);
+    return n;
+  };
+  const clear = n => { while (n.firstChild) n.removeChild(n.firstChild); return n; };
+
+  // tooltip
+  const tip = document.getElementById("tip");
+  function showTip(evt, lines) {
+    clear(tip);
+    lines.forEach((l, i) => { if (i) tip.appendChild(document.createElement("br"));
+      if (Array.isArray(l)) { tip.appendChild(document.createTextNode(l[0])); el("b", { text: l[1] }, tip); }
+      else tip.appendChild(document.createTextNode(l)); });
+    tip.style.opacity = 1;
+    const p = evt.touches ? evt.touches[0] : evt;
+    const w = tip.offsetWidth, h = tip.offsetHeight;
+    let x = p.clientX + 14, y = p.clientY + 14;
+    if (x + w > innerWidth - 8) x = p.clientX - w - 14;
+    if (y + h > innerHeight - 8) y = p.clientY - h - 14;
+    tip.style.left = Math.max(8, x) + "px"; tip.style.top = Math.max(8, y) + "px";
+  }
+  const hideTip = () => { tip.style.opacity = 0; };
+  const hover = (node, lines) => {
+    node.addEventListener("mousemove", e => showTip(e, lines()));
+    node.addEventListener("mouseleave", hideTip);
+    node.addEventListener("touchstart", e => showTip(e, lines()), { passive: true });
+  };
+  document.addEventListener("touchstart", e => { if (!e.target.closest("svg")) hideTip(); }, { passive: true });
+
+  function seqColor(v, lo, hi) {
+    if (v == null) return null;
+    const t = hi > lo ? (v - lo) / (hi - lo) : 0.5;
+    const i = Math.min(6, Math.max(0, Math.round(t * 6)));
+    return css(seqVars[i]);
+  }
+  const textOn = (v, lo, hi) => (hi > lo ? (v - lo) / (hi - lo) : .5) > 0.55 ? "#ffffff" : css("--ink");
+
+  // ---------- status + verdict ----------
+  function renderStatus() {
+    const s = clear(document.getElementById("status"));
+    const last = D.last_snapshot_utc ? new Date(D.last_snapshot_utc) : null;
+    const ageMin = last ? (Date.now() - last) / 60000 : Infinity;
+    const p = el("span", { class: "pill" }, s);
+    el("span", { class: "dot" + (ageMin > 45 ? " stale" : "") }, p);
+    p.appendChild(document.createTextNode(last ? `Last sample ${fmtTime.format(last)} (${Math.round(ageMin)} min ago)` : "No samples yet"));
+    el("span", { text: `${D.snapshots} samples` }, s);
+    if (D.first_snapshot_utc) {
+      const days = (new Date(D.last_snapshot_utc) - new Date(D.first_snapshot_utc)) / 86400000;
+      el("span", { text: `Tracking since ${fmtDay.format(new Date(D.first_snapshot_utc))} (${days < 1 ? Math.round(days * 24) + " h" : days.toFixed(1) + " days"})` }, s);
+    }
+  }
+
+  function renderVerdict() {
+    const box = clear(document.getElementById("verdict"));
+    const ws = D.worlds.filter(w => D.world_stats[w].avg != null);
+    const days = D.first_snapshot_utc ? (new Date(D.last_snapshot_utc) - new Date(D.first_snapshot_utc)) / 86400000 : 0;
+    document.getElementById("verdict-note").textContent = days < 3
+      ? `Early read: ${days < 1 ? Math.round(days * 24) + " hours" : days.toFixed(1) + " days"} of data. Rankings firm up after 3 or more days.`
+      : `Based on ${days.toFixed(1)} days of data.`;
+    if (!ws.length) { el("p", { class: "empty", text: "Waiting for the first sample." }, box); return; }
+    const key = w => D.world_stats[w].prime_avg ?? D.world_stats[w].avg;
+    const byPrime = [...ws].sort((a, b) => key(b) - key(a));
+    const byAvg = [...ws].sort((a, b) => D.world_stats[b].avg - D.world_stats[a].avg);
+    const home = D.world_stats[D.home];
+    const tile = (k, v, d, cls = "") => { const t = el("div", { class: "tile " + cls }, box); el("span", { class: "k", text: k }, t); el("span", { class: "v", text: v }, t); el("span", { class: "d", text: d }, t); };
+    const top = byPrime[0], s = D.world_stats[top];
+    tile("Busiest at prime time", top, `${Math.round(key(top))} avg players 19:00–23:59 · peak ${s.peak}`);
+    const q = byAvg[byAvg.length - 1];
+    tile("Quietest overall", q, `${Math.round(D.world_stats[q].avg)} avg players · peak ${D.world_stats[q].peak}`);
+    if (home && home.avg != null) {
+      const rank = byPrime.indexOf(D.home) + 1;
+      tile(`Your world: ${D.home}`, `#${rank} of ${byPrime.length}`, `${Math.round(key(D.home))} prime-time avg · busiest around ${hh(home.busiest_hour)}`, "home");
+    }
+    // busiest hour across all tracked worlds
+    let bestH = null, bestV = -1;
+    for (let h = 0; h < 24; h++) {
+      const vals = ws.map(w => D.world_hour_avg[w][h]).filter(v => v != null);
+      if (vals.length) { const m = vals.reduce((a, b) => a + b, 0); if (m > bestV) { bestV = m; bestH = h; } }
+    }
+    if (bestH != null) tile("Busiest hour (all 11)", hh(bestH), `${Math.round(bestV)} players across the worlds, on average`);
+  }
+
+  // ---------- right now (bars) ----------
+  function renderNow() {
+    const host = clear(document.getElementById("now-chart"));
+    const rows = D.worlds.filter(w => D.latest[w]).map(w => ({ w, v: D.latest[w].players, cap: D.latest[w].capacity }))
+      .sort((a, b) => b.v - a.v);
+    if (!rows.length) { el("p", { class: "empty", text: "No sample yet." }, host); return; }
+    document.getElementById("now-note").textContent = D.last_snapshot_utc ? fmtTime.format(new Date(D.last_snapshot_utc)) : "";
+    const W = Math.max(280, host.clientWidth), lab = 112, valW = 44, rowH = 24, H = rows.length * rowH + 4;
+    const svg = el("svg:svg", { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Players online now per world" }, host);
+    const max = Math.max(...rows.map(r => r.v)) * 1.05;
+    const x = v => (W - lab - valW) * v / max;
+    rows.forEach((r, i) => {
+      const y = i * rowH + 2, g = el("svg:g", {}, svg);
+      el("svg:text", { x: 0, y: y + 15, class: "lbl" + (r.w === D.home ? " home" : ""), text: r.w }, g);
+      el("svg:rect", { x: lab, y: y + 4, width: Math.max(2, x(r.v)), height: rowH - 10, rx: 3,
+        fill: r.w === D.home ? css("--accent") : css("--series") }, g);
+      el("svg:text", { x: lab + x(r.v) + 6, y: y + 15, text: r.v }, g);
+      el("svg:rect", { x: 0, y, width: W, height: rowH, fill: "transparent" }, g);
+      hover(g, () => [r.w, ["Players now: ", `${r.v} / ${r.cap}`], `${(100 * r.v / r.cap).toFixed(1)}% of world capacity`]);
+    });
+  }
+
+  // ---------- Europe 30-day pattern ----------
+  function renderEU() {
+    const host = clear(document.getElementById("eu-chart"));
+    const vals = D.region_eu.hour_avg;
+    if (!vals || vals.every(v => v == null)) { el("p", { class: "empty", text: "No data." }, host); return; }
+    const W = Math.max(280, host.clientWidth), H = 190, m = { l: 44, r: 8, t: 10, b: 24 };
+    const svg = el("svg:svg", { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Average EU players by hour" }, host);
+    const max = Math.max(...vals) * 1.08, iw = W - m.l - m.r, ih = H - m.t - m.b, bw = iw / 24;
+    const y = v => m.t + ih - ih * v / max;
+    [0, .5, 1].forEach(f => { const v = Math.round(max * f / 1000) * 1000; if (v > max) return;
+      el("svg:line", { x1: m.l, x2: W - m.r, y1: y(v), y2: y(v), stroke: css("--grid") }, svg);
+      el("svg:text", { x: m.l - 6, y: y(v) + 4, "text-anchor": "end", text: v >= 1000 ? (v / 1000) + "k" : v }, svg); });
+    const peak = vals.indexOf(Math.max(...vals));
+    vals.forEach((v, h) => {
+      const g = el("svg:g", {}, svg);
+      el("svg:rect", { x: m.l + h * bw + 1, y: y(v), width: Math.max(1, bw - 2), height: m.t + ih - y(v), rx: 2,
+        fill: h === peak ? css("--seq-5") : css("--seq-3") }, g);
+      el("svg:rect", { x: m.l + h * bw, y: m.t, width: bw, height: ih, fill: "transparent" }, g);
+      hover(g, () => [`${hh(h)}–${hh((h + 1) % 24).slice(0, 2)}:59 UK`, ["Avg EU players: ", Math.round(v).toLocaleString("en-GB")]]);
+      if (h % 3 === 0) el("svg:text", { x: m.l + h * bw + bw / 2, y: H - 6, "text-anchor": "middle", text: String(h).padStart(2, "0") }, svg);
+    });
+    el("svg:text", { x: m.l + peak * bw + bw / 2, y: y(vals[peak]) - 4, "text-anchor": "middle", text: "peak " + hh(peak) }, svg);
+  }
+
+  // ---------- heatmap helper ----------
+  function heatmap(host, rows, cols, get, opts) {
+    clear(host);
+    const lab = opts.labelW || 118, cw = Math.max(22, Math.min(36, (host.clientWidth - lab) / cols.length)), ch = opts.cellH || 24;
+    const W = lab + cw * cols.length, H = 18 + rows.length * ch;
+    const svg = el("svg:svg", { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": opts.aria }, host);
+    let lo = Infinity, hi = -Infinity;
+    rows.forEach(r => cols.forEach((c, j) => { const v = get(r, j); if (v != null) { lo = Math.min(lo, v); hi = Math.max(hi, v); } }));
+    if (!isFinite(lo)) { lo = 0; hi = 1; }
+    cols.forEach((c, j) => { if (j % (cw < 26 ? 2 : 1) === 0) el("svg:text", { x: lab + j * cw + cw / 2, y: 12, "text-anchor": "middle", text: c }, svg); });
+    rows.forEach((r, i) => {
+      const y = 18 + i * ch;
+      el("svg:text", { x: lab - 8, y: y + ch / 2 + 4, "text-anchor": "end", class: "lbl" + (r === D.home ? " home" : ""), text: opts.rowLabel ? opts.rowLabel(r) : r }, svg);
+      cols.forEach((c, j) => {
+        const v = get(r, j), g = el("svg:g", {}, svg);
+        el("svg:rect", { x: lab + j * cw + 1, y: y + 1, width: cw - 2, height: ch - 2, rx: 3,
+          fill: v == null ? "transparent" : seqColor(v, lo, hi), stroke: v == null ? css("--grid") : "none" }, g);
+        if (v != null && opts.showValues && cw >= 26) el("svg:text", { x: lab + j * cw + cw / 2, y: y + ch / 2 + 4, "text-anchor": "middle",
+          style: `fill:${textOn(v, lo, hi)};font-size:10px`, text: Math.round(v) }, g);
+        hover(g, () => opts.tip(r, j, v));
+      });
+    });
+    return [lo, hi];
+  }
+
+  function renderHeat() {
+    const ws = [...D.worlds].sort((a, b) => (D.world_stats[b].avg ?? -1) - (D.world_stats[a].avg ?? -1));
+    const [lo, hi] = heatmap(document.getElementById("heat"), ws, [...Array(24).keys()].map(h => String(h).padStart(2, "0")),
+      (w, h) => D.world_hour_avg[w][h], {
+        aria: "Average players per world by UK hour", showValues: true,
+        tip: (w, h, v) => v == null ? [w, `${hh(h)} UK`, "No samples yet"] :
+          [w, `${hh(h)} UK`, ["Avg: ", Math.round(v)], ["Peak: ", D.world_hour_peak[w][h]], ["Samples: ", D.world_hour_n[w][h]]],
+      });
+    const ramp = clear(document.getElementById("ramp"));
+    seqVars.forEach(v => { const i = el("i", {}, ramp); i.style.background = css(v); });
+    document.getElementById("ramp-range").textContent = isFinite(lo) && hi > 1 ? `${Math.round(lo)} → ${Math.round(hi)}` : "";
+  }
+
+  function renderBoard() {
+    const tb = clear(document.querySelector("#board tbody"));
+    const home = D.world_stats[D.home];
+    const key = w => D.world_stats[w].prime_avg ?? D.world_stats[w].avg ?? -1;
+    [...D.worlds].sort((a, b) => key(b) - key(a)).forEach(w => {
+      const s = D.world_stats[w], tr = el("tr", { class: w === D.home ? "home" : "" }, tb);
+      const now = D.latest[w] ? D.latest[w].players : null;
+      const diff = home && home.prime_avg && s.prime_avg ? (100 * (s.prime_avg - home.prime_avg) / home.prime_avg) : null;
+      el("td", { text: w }, tr);
+      el("td", { text: now ?? "–" }, tr);
+      el("td", { text: s.avg != null ? Math.round(s.avg) : "–" }, tr);
+      el("td", { text: s.prime_avg != null ? Math.round(s.prime_avg) : "–" }, tr);
+      el("td", { class: diff == null || w === D.home ? "" : diff >= 0 ? "pos" : "neg", text: w === D.home ? "—" : diff == null ? "–" : (diff >= 0 ? "+" : "") + diff.toFixed(0) + "%" }, tr);
+      el("td", { text: s.peak != null ? `${s.peak} (${fmtTime.format(new Date(s.peak_utc)).replace(",", "")})` : "–" }, tr);
+      el("td", { text: s.busiest_hour != null ? hh(s.busiest_hour) : "–" }, tr);
+      el("td", { text: s.quietest_hour != null ? hh(s.quietest_hour) : "–" }, tr);
+      tr.style.cursor = "pointer"; tr.addEventListener("click", () => { select(w); document.getElementById("world-panel").scrollIntoView({ behavior: "smooth" }); });
+    });
+  }
+
+  // ---------- world detail ----------
+  function renderChips() {
+    const box = clear(document.getElementById("chips"));
+    D.worlds.forEach(w => {
+      const b = el("button", { class: "chip" + (w === D.home ? " home" : ""), type: "button", id: "chip-" + w.replace(/\W/g, ""), "aria-pressed": String(w === selected), text: w }, box);
+      b.addEventListener("click", () => select(w));
+    });
+  }
+  function select(w) {
+    selected = w; try { localStorage.setItem("dune-world", w); } catch (e) {}
+    document.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", String(c.textContent === w)));
+    renderWorld();
+  }
+
+  function renderTrend() {
+    const host = clear(document.getElementById("trend"));
+    const leg = clear(document.getElementById("trend-legend"));
+    const series = D.world_series;
+    const all = D.worlds.flatMap(w => series[w]);
+    if (all.length < 2) { el("p", { class: "empty", text: "The trend line appears after a couple of hours of samples." }, host); return; }
+    const t0 = Math.min(...all.map(p => p[0])), t1 = Math.max(...all.map(p => p[0]));
+    const vmax = Math.max(...all.map(p => p[1])) * 1.08, vmin = 0;
+    const W = Math.max(300, host.clientWidth), H = 240, m = { l: 40, r: 12, t: 12, b: 26 };
+    const iw = W - m.l - m.r, ih = H - m.t - m.b;
+    const x = t => m.l + (t1 > t0 ? iw * (t - t0) / (t1 - t0) : iw / 2), y = v => m.t + ih - ih * (v - vmin) / (vmax - vmin);
+    const svg = el("svg:svg", { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Hourly average players over time" }, host);
+    const step = Math.pow(10, Math.floor(Math.log10(vmax))) / (vmax / Math.pow(10, Math.floor(Math.log10(vmax))) < 3 ? 2 : 1);
+    for (let v = 0; v <= vmax; v += step) { el("svg:line", { x1: m.l, x2: W - m.r, y1: y(v), y2: y(v), stroke: css("--grid") }, svg);
+      el("svg:text", { x: m.l - 6, y: y(v) + 4, "text-anchor": "end", text: v }, svg); }
+    // day ticks at UK midnight
+    const dayFmt = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", hourCycle: "h23" });
+    for (let t = t0; t <= t1; t += 3600) if (dayFmt.format(new Date(t * 1000)) === "00") {
+      el("svg:line", { x1: x(t), x2: x(t), y1: m.t, y2: m.t + ih, stroke: css("--grid") }, svg);
+      el("svg:text", { x: x(t) + 3, y: H - 8, text: fmtDay.format(new Date(t * 1000)) }, svg);
+    }
+    const path = pts => pts.map((p, i) => (i ? "L" : "M") + x(p[0]).toFixed(1) + "," + y(p[1]).toFixed(1)).join("");
+    const order = D.worlds.filter(w => w !== selected && w !== D.home).concat(D.home === selected ? [selected] : [D.home, selected]);
+    order.forEach(w => {
+      const isSel = w === selected, isHome = w === D.home;
+      el("svg:path", { d: path(series[w]), fill: "none", "stroke-width": isSel || isHome ? 2 : 1,
+        stroke: isSel ? css("--series") : isHome ? css("--accent") : css("--other"), "stroke-linejoin": "round" }, svg);
+    });
+    const sw = (c, t) => { const s = el("span", {}, leg); el("span", { class: "sw", style: `background:${c}` }, s); s.appendChild(document.createTextNode(t)); };
+    sw(css("--series"), selected); if (selected !== D.home) sw(css("--accent"), D.home + " (yours)"); sw(css("--other"), "Other EU Xbox worlds");
+    // crosshair
+    const cross = el("svg:line", { y1: m.t, y2: m.t + ih, stroke: css("--ink-3"), "stroke-dasharray": "3 3", opacity: 0 }, svg);
+    const hit = el("svg:rect", { x: m.l, y: m.t, width: iw, height: ih, fill: "transparent" }, svg);
+    const near = (pts, t) => pts.reduce((b, p) => Math.abs(p[0] - t) < Math.abs(b[0] - t) ? p : b, pts[0]);
+    const move = e => {
+      const p = e.touches ? e.touches[0] : e, r = svg.getBoundingClientRect();
+      const t = t0 + (t1 - t0) * Math.min(1, Math.max(0, (p.clientX - r.left - m.l) / iw));
+      const s = near(series[selected], t); if (!s) return;
+      cross.setAttribute("x1", x(s[0])); cross.setAttribute("x2", x(s[0])); cross.setAttribute("opacity", 1);
+      const lines = [fmtTime.format(new Date(s[0] * 1000)) + " UK", [selected + ": ", Math.round(s[1])]];
+      if (selected !== D.home) { const h = near(series[D.home], s[0]); if (h && h[0] === s[0]) lines.push([D.home + ": ", Math.round(h[1])]); }
+      showTip(e, lines);
+    };
+    hit.addEventListener("mousemove", move); hit.addEventListener("touchmove", move, { passive: true }); hit.addEventListener("touchstart", move, { passive: true });
+    hit.addEventListener("mouseleave", () => { cross.setAttribute("opacity", 0); hideTip(); });
+  }
+
+  function renderWorld() {
+    if (!selected || !D.worlds.includes(selected)) selected = D.home;
+    document.getElementById("world-title").textContent = `World detail: ${selected}`;
+    renderTrend();
+    heatmap(document.getElementById("dow"), [0, 1, 2, 3, 4, 5, 6], [...Array(24).keys()].map(h => String(h).padStart(2, "0")),
+      (d, h) => D.world_dow_hour_avg[selected][d][h], {
+        labelW: 48, aria: `${selected}: average players by weekday and hour`, rowLabel: d => DOW[d], showValues: true,
+        tip: (d, h, v) => [`${selected} · ${DOW[d]} ${hh(h)} UK`, v == null ? "No samples yet" : ["Avg players: ", Math.round(v)]],
+      });
+    const sh = D.sietch_hour_avg[selected] || {};
+    const names = Object.keys(sh).sort((a, b) => (D.sietch_avg[selected][b] ?? 0) - (D.sietch_avg[selected][a] ?? 0));
+    const host = document.getElementById("sietch");
+    if (!names.length) { clear(host); el("p", { class: "empty", text: "No sietch data yet." }, host); return; }
+    heatmap(host, names, [...Array(24).keys()].map(h => String(h).padStart(2, "0")), (s, h) => sh[s][h], {
+      labelW: 150, cellH: 20, aria: `${selected}: sietch averages by hour`, showValues: true,
+      rowLabel: s => s.replace(/^Sietch /, ""),
+      tip: (s, h, v) => [`${s} · ${hh(h)} UK`, v == null ? "No samples yet" : ["Avg players: ", `${Math.round(v)} / 60`],
+        ["Now: ", (D.sietch_latest[selected] || {})[s] ?? "–"]],
+    });
+  }
+
+  function renderAll() {
+    renderStatus(); renderVerdict(); renderNow(); renderEU(); renderHeat(); renderBoard(); renderChips(); renderWorld();
+    document.getElementById("foot-meta").textContent = `Summary rebuilt ${fmtTime.format(new Date(D.generated_utc))} UK. All hours are UK time (${TZ}).`;
+  }
+
+  async function load() {
+    try {
+      const r = await fetch("data/summary.json?t=" + Date.now(), { cache: "no-store" });
+      if (!r.ok) throw new Error(r.status);
+      D = await r.json();
+      renderAll();
+    } catch (e) {
+      const s = clear(document.getElementById("status"));
+      const p = el("span", { class: "pill" }, s); el("span", { class: "dot stale" }, p);
+      p.appendChild(document.createTextNode("Couldn't load data/summary.json. Refresh the page in a minute."));
+    }
+  }
+  let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => D && renderAll(), 150); });
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => D && renderAll());
+  load();
+  setInterval(load, 5 * 60 * 1000);
+})();
+</script>
+</body>
+</html>
