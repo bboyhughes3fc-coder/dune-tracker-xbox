@@ -87,6 +87,8 @@ tr.home td:first-child { color: var(--accent); font-weight: 600; }
 #tip { position: fixed; pointer-events: none; z-index: 20; background: var(--ink); color: var(--bg); padding: 7px 10px; border-radius: 6px;
   font: 12.5px/1.4 var(--body); max-width: 240px; opacity: 0; transition: opacity .1s; }
 #tip b { font-family: var(--mono); font-weight: 500; }
+.swipe { display: none; }
+@media (max-width: 720px) { .swipe { display: block; } }
 .empty { color: var(--ink-3); font-style: italic; }
 footer { font-size: 13px; color: var(--ink-3); display: grid; gap: 6px; }
 footer a { color: var(--ink-2); }
@@ -122,6 +124,7 @@ footer a { color: var(--ink-2); }
   <section class="panel" id="heat-panel">
     <div class="panel-head"><h2>Busiest hours by world</h2>
       <div class="legend">Average players <span class="ramp" id="ramp"></span><span id="ramp-range"></span></div></div>
+    <p class="note swipe">Swipe sideways to see all 24 hours.</p>
     <div class="scroll" id="heat"></div>
     <p class="note">Each cell is the average player count in that UK hour across every day collected. Rows are sorted by overall average. Blank cells have no samples yet.</p>
   </section>
@@ -235,13 +238,14 @@ footer a { color: var(--ink-2); }
     const byAvg = [...ws].sort((a, b) => D.world_stats[b].avg - D.world_stats[a].avg);
     const home = D.world_stats[D.home];
     const tile = (k, v, d, cls = "") => { const t = el("div", { class: "tile " + cls }, box); el("span", { class: "k", text: k }, t); el("span", { class: "v", text: v }, t); el("span", { class: "d", text: d }, t); };
-    const top = byPrime[0], s = D.world_stats[top];
-    tile("Busiest at prime time", top, `${Math.round(key(top))} avg players 19:00–23:59 · peak ${s.peak}`);
+    const top = byPrime[0], s = D.world_stats[top], hasPrime = s.prime_avg != null;
+    tile(hasPrime ? "Busiest at prime time" : "Busiest so far", top,
+      hasPrime ? `${Math.round(s.prime_avg)} avg players 19:00–23:59 · peak ${s.peak}` : `${Math.round(s.avg)} avg players · no 19:00–23:59 data yet`);
     const q = byAvg[byAvg.length - 1];
     tile("Quietest overall", q, `${Math.round(D.world_stats[q].avg)} avg players · peak ${D.world_stats[q].peak}`);
     if (home && home.avg != null) {
       const rank = byPrime.indexOf(D.home) + 1;
-      tile(`Your world: ${D.home}`, `#${rank} of ${byPrime.length}`, `${Math.round(key(D.home))} prime-time avg · busiest around ${hh(home.busiest_hour)}`, "home");
+      tile(`Your world: ${D.home}`, `#${rank} of ${byPrime.length}`, `${Math.round(key(D.home))} ${home.prime_avg != null ? "prime-time" : ""} avg · busiest around ${hh(home.busiest_hour)}`.replace("  ", " "), "home");
     }
     // busiest hour across all tracked worlds
     let bestH = null, bestV = -1;
@@ -375,7 +379,7 @@ footer a { color: var(--ink-2); }
     const leg = clear(document.getElementById("trend-legend"));
     const series = D.world_series;
     const all = D.worlds.flatMap(w => series[w]);
-    if (all.length < 2) { el("p", { class: "empty", text: "The trend line appears after a couple of hours of samples." }, host); return; }
+    if (new Set(all.map(p => p[0])).size < 2) { el("p", { class: "empty", text: "The trend line appears after a couple of hours of samples." }, host); return; }
     const t0 = Math.min(...all.map(p => p[0])), t1 = Math.max(...all.map(p => p[0]));
     const vmax = Math.max(...all.map(p => p[1])) * 1.08, vmin = 0;
     const W = Math.max(300, host.clientWidth), H = 240, m = { l: 40, r: 12, t: 12, b: 26 };
