@@ -1,15 +1,22 @@
 name: Scrape EU Xbox server counts
 
+# How this keeps running:
+# GitHub's own cron is "best effort" and often never fires for new repos, so each run
+# loops for ~5.5 hours, scraping every 15 minutes, then starts the next run itself
+# (workflow_dispatch via GITHUB_TOKEN). The cron below is only a backup that restarts
+# the chain if it ever breaks. The concurrency group makes sure only one loop runs.
+
 on:
   schedule:
-    - cron: "4,19,34,49 * * * *"   # every 15 min (off the :00 rush, GitHub delays those)
+    - cron: "4,19,34,49 * * * *"
   workflow_dispatch: {}
-  push:                            # run once whenever the scraper itself changes
+  push:                            # start (or restart) whenever the scraper changes
     branches: [main]
     paths: ["scraper/**", ".github/workflows/**"]
 
 permissions:
-  contents: write
+  contents: write   # commit the data
+  actions: write    # start the next run in the chain
 
 concurrency:
   group: scrape
@@ -18,22 +25,34 @@ concurrency:
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 350
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Scrape dunestatus.com and rebuild summary
-        run: python scraper/scrape.py
-      - name: Commit new data
+      - name: Scrape every 15 minutes for ~5.5 hours
         run: |
           git config user.name "dune-tracker-bot"
           git config user.email "dune-tracker-bot@users.noreply.github.com"
-          git add data docs/data
-          if git diff --cached --quiet; then
-            echo "No new snapshot"
-          else
-            git commit -m "data: snapshot $(date -u +%Y-%m-%dT%H:%MZ)"
-            for i in 1 2 3; do git pull --rebase && git push && break; sleep 5; done
-          fi
+          end=$((SECONDS + 330*60))
+          while true; do
+            git pull -q --rebase origin main || true
+            if python scraper/scrape.py; then
+              git add data docs/data
+              if ! git diff --cached --quiet; then
+                git commit -q -m "data: snapshot $(date -u +%Y-%m-%dT%H:%MZ)"
+                for i in 1 2 3; do git pull -q --rebase origin main && git push -q origin HEAD:main && break; sleep 5; done
+              fi
+            else
+              echo "::warning::scrape failed at $(date -u +%H:%M), will retry next slot"
+            fi
+            [ $SECONDS -ge $end ] && break
+            # sleep until the next :04 / :19 / :34 / :49
+            now=$(date +%s); sleep $(( 900 - (now - 240) % 900 ))
+          done
+      - name: Start the next run
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run scrape.yml --ref main --repo "${{ github.repository }}"
